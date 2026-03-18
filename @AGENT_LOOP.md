@@ -66,6 +66,42 @@ Write a brief implementation plan covering:
 
 Present the plan. In supervised mode, wait for human approval before proceeding. If running autonomously, proceed after a self-check that the plan is sound.
 
+## Step 4b: Capture Visual Baselines
+
+If this spec touches visible UI (components, pages, styling, layout), capture baseline screenshots **before branching**. This must happen on `main` so you have a clean reference for comparison after implementation.
+
+### Process
+
+1. Identify which pages, routes, and UI states could be visually affected by this change. Consider:
+   - Directly affected pages/components
+   - Shared layout or navigation that might be impacted
+   - Different states: empty, loaded, error, hover, modal open/closed
+   - Light and dark themes if both are supported
+
+2. Write a Playwright script (not a test — a standalone script using Playwright's API) that:
+   - Launches a headless Chromium browser
+   - Loads authentication state if the pages require login
+   - Navigates to each identified page/state
+   - Waits for content to be fully rendered (network idle, key elements visible)
+   - Takes full-page screenshots with descriptive filenames
+   - Saves them to `/tmp/visual-baselines/`
+
+3. Start the dev server on `main`, run the script, then stop the server.
+
+4. **Keep the script file** — you will re-run it after implementation for comparison.
+
+**Skip this step** if the spec has zero visual impact (pure backend logic, worker changes, database-only, API-only, etc.).
+
+<!-- CUSTOMIZE: Add your dev server start/stop commands here, e.g.:
+```bash
+npm run dev > /tmp/dev-server.log 2>&1 &
+DEV_PID=$!
+# Wait for server ready
+# Run Playwright script
+kill $DEV_PID 2>/dev/null
+```
+-->
+
 ## Step 5: Create Branch
 
 Create a new branch from the latest `main` (or default branch) in the affected repo(s).
@@ -116,6 +152,28 @@ Before involving review personas, do your own review:
 - Ensure tests cover the meaningful behavior, not just happy paths.
 
 Fix any issues found before proceeding.
+
+### Visual Validation (if baselines were captured in Step 4b)
+
+1. Start the dev server on your working branch.
+
+2. Re-run the Playwright script from Step 4b, saving screenshots to `/tmp/visual-post/` instead.
+
+3. Write additional Playwright interactions that exercise the changed UI beyond static screenshots:
+   - Click buttons, open modals, navigate between views
+   - Fill forms, trigger state changes, hover interactive elements
+   - Verify elements are visible, correctly positioned, and interactive
+   - Test the specific behavior described in the spec's acceptance criteria
+   - Take screenshots after each significant interaction
+
+4. Compare the baseline (`/tmp/visual-baselines/`) and post-change (`/tmp/visual-post/`) screenshots visually:
+   - **For refactors/component replacements:** expect NO visual differences. Any change is a regression — investigate and fix.
+   - **For new features:** new UI should look correct and match the spec. Existing/surrounding UI should be unchanged.
+   - Pay attention to: spacing, alignment, colors, font sizes, borders, shadows, scroll behavior, and responsive layout.
+
+5. Stop the dev server.
+
+If visual regressions are found, fix them and re-capture post-change screenshots to confirm the fix.
 
 ## Step 8: Run Full Checks
 
