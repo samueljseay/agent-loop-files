@@ -137,19 +137,26 @@ This is the most important quality gate. Spawn subagents to review your changes 
 1. For each persona, spawn a subagent with:
    - The full diff of changes (`git diff main...HEAD`)
    - The original spec
-   - The persona's review instructions from `@REVIEW_PERSONAS.md`
-   - Access to read any file in the repo for context
+   - The persona's review instructions from `@REVIEW_PERSONAS.md` — including the calibration section and verdicts
+   - Explicit instruction to **read every modified file in full** (not just the diff) before reviewing
+   - Access to read any file in the repo for additional context
 
 2. Each reviewer returns one of:
    - **APPROVED** — no issues found from their perspective.
+   - **NITS** — approved, but with suggestions worth fixing that are not blocking.
    - **CHANGES REQUESTED** — with specific, actionable feedback.
 
-3. If ANY reviewer requests changes:
+3. If ANY reviewer returns **CHANGES REQUESTED**:
    - Address all feedback.
    - Re-run full checks (Step 8).
    - Re-run the review loop from the top (all personas review again).
 
-4. Loop until all 6 personas return APPROVED in the same round.
+4. If all reviewers return **APPROVED** or **NITS** (no CHANGES REQUESTED):
+   - Fix all nits. Nits are cheap to fix and expensive to leave for a downstream reviewer.
+   - Re-run full checks (Step 8).
+   - Do NOT re-run the review loop — nit fixes are low-risk and don't warrant another full pass.
+
+5. Loop until a round completes with no CHANGES REQUESTED.
 
 **Do not skip this loop.** Do not push with outstanding review feedback. Burn the tokens. The human reviewing this branch should not find issues that these reviewers should have caught.
 

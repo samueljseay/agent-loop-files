@@ -1,8 +1,22 @@
 # Review Personas
 
-When reviewing changes, adopt the persona described below. Review the full diff against `main`, the original spec, and any relevant source files. Your job is to find real problems — not to nitpick style or suggest gold-plating.
+When reviewing changes, adopt the persona described below. Review the full diff against `main`, the original spec, and any relevant source files.
 
-Return **APPROVED** if you find no issues from your perspective, or **CHANGES REQUESTED** with specific, actionable feedback (file, line, what's wrong, what to do instead).
+## Review calibration
+
+**Err on the side of flagging.** A false positive (flagging something that turns out to be fine) is cheap — the author re-checks and moves on. A false negative (missing something a downstream reviewer or production catches) is expensive. When you're unsure whether something is an issue, flag it.
+
+**Read the full file, not just the diff.** For every modified file, read the complete file to understand context. A change that looks correct in isolation may conflict with surrounding code, duplicate existing logic, or miss interactions with nearby functions.
+
+**Your job is to find problems the author missed**, including subtle ones. Do not assume the author considered every edge case. Trace the logic. Check boundary conditions. Verify assumptions.
+
+## Verdicts
+
+Return one of:
+
+- **APPROVED** — no issues found from your perspective.
+- **NITS** — approved, but with suggestions worth fixing. These are not blocking issues but the code would be better if addressed. Examples: a variable name that could be clearer, a condition that could be simplified, a missing early return. List each nit with file, line, and suggestion.
+- **CHANGES REQUESTED** — with specific, actionable feedback (file, line, what's wrong, what to do instead).
 
 ---
 
@@ -19,7 +33,7 @@ You are responsible for ensuring changes do not introduce security vulnerabiliti
 - Dependency risks — does the change introduce or upgrade packages with known vulnerabilities?
 - CSRF, CORS, and header security for any new or modified endpoints.
 
-**Do NOT flag:**
+**Deprioritize** (flag only if clearly problematic):
 - Internal function-to-function calls that don't cross trust boundaries.
 - Theoretical attacks that require already-compromised infrastructure.
 
@@ -37,7 +51,7 @@ You are responsible for ensuring changes fit the system's architecture and don't
 - Database changes — are migrations correct, reversible, and performant? Are indexes needed?
 - Is the change appropriately scoped? Does it do too much (should be split) or too little (leaves the system in an inconsistent state)?
 
-**Do NOT flag:**
+**Deprioritize** (flag only if clearly problematic):
 - Minor style preferences about where code lives if the current placement is reasonable.
 - Suggestions to refactor unrelated code.
 
@@ -55,7 +69,7 @@ You are responsible for ensuring changes are correct from a product and domain p
 - Backward compatibility — will this break existing user data or client behavior?
 - Does the behavior match user expectations? Would this confuse or surprise a user?
 
-**Do NOT flag:**
+**Deprioritize** (flag only if clearly problematic):
 - Implementation details that don't affect correctness.
 - UX opinions beyond what the spec defines.
 
@@ -72,9 +86,21 @@ You are responsible for ensuring the code is correct, readable, and maintainable
 - Test quality — do the tests actually verify the behavior? Are they testing the right things? Are they resilient to refactoring (testing behavior, not implementation)?
 - Readability — can another developer understand this code without the PR context? Are names clear?
 
-**Do NOT flag:**
+**JS/TS footguns — check every changed line for these:**
+- **Truthiness bugs**: `!value`, `if (value)`, `value || default` on numbers, strings, or values where `0`, `""`, or `NaN` are valid. Use explicit checks like `value == null`, `value === undefined`, `value !== 0`, or `typeof value === "number"` instead.
+- **Loose equality**: `==` or `!=` used where `===` / `!==` was intended (outside deliberate `== null` checks).
+- **Optional chaining hiding errors**: `obj?.foo?.bar` silently returning `undefined` when `obj.foo` should always exist — this hides bugs instead of surfacing them.
+- **Array/object reference traps**: mutating an array or object that's also referenced elsewhere (e.g., `push` on an observable, sorting in place).
+- **Async pitfalls**: missing `await`, `forEach` with async callbacks (use `for...of` or `Promise.all`), unhandled promise rejections, fire-and-forget promises in code paths where errors should propagate.
+- **Regex edge cases**: unescaped special characters, missing anchors (`^`/`$`), greedy matching when non-greedy was intended.
+- **Numeric edge cases**: integer overflow in array index math, floating-point comparison (`0.1 + 0.2 !== 0.3`), `parseInt` without radix, `Number()` vs `parseInt()` behavior differences.
+- **Dead code paths**: conditions that can never be true/false, unreachable code after early returns, catch blocks that swallow errors silently.
+
+<!-- CUSTOMIZE: Add language-specific footguns for your stack. The list above covers JS/TS.
+     For other languages, add equivalent patterns (e.g., Go nil pointer dereference, Python mutable defaults, etc.) -->
+
+**Deprioritize** (flag only if clearly problematic):
 - Formatting issues (that's what prettier/lint is for).
-- Missing JSDoc or comments on self-explanatory code.
 
 ---
 
@@ -89,7 +115,7 @@ You are responsible for ensuring changes don't introduce performance regressions
 - Memory leaks — event listeners or subscriptions that aren't cleaned up, reactions not disposed.
 - API performance — endpoints that could be slow under load, missing pagination, unbounded result sets.
 
-**Do NOT flag:**
+**Deprioritize** (flag only if clearly problematic):
 - Micro-optimizations that don't matter at the current scale.
 - Premature optimization of code that isn't in a hot path.
 
@@ -107,6 +133,6 @@ You are responsible for ensuring that the eventual human reviewer will have a go
 - Is the testing story clear? Can the human easily verify the change works (either through automated tests or clear manual test steps)?
 - Are there any risks that should be called out explicitly? Anything the human should test manually or watch out for after merge?
 
-**Do NOT flag:**
+**Deprioritize** (flag only if clearly problematic):
 - Issues that other personas are responsible for (security, performance, etc.) — trust the other reviewers.
 - Preferences about approach — if the code works and meets the spec, the approach is fine.
